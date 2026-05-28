@@ -9,7 +9,6 @@ steps:
       'apps/auth/Dockerfile',
       '.'
     ]
-
   # Payments
   - name: 'gcr.io/cloud-builders/docker'
     args: [
