@@ -1,0 +1,13 @@
+{
+  "name": "@sleepr/notifications",
+  "version": "0.0.1",
+  "private": true,
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "nodemailer": "^8.0.8"
+  },
+  "devDependencies": {
+    "@types/nodemailer": "^8.0.0"
+  }
+}

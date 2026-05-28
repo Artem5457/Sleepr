@@ -1,0 +1,10 @@
+{
+  "name": "@sleepr/payments",
+  "version": "0.0.1",
+  "private": true,
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "stripe": "^22.1.1"
+  }
+}

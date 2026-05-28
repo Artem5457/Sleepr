@@ -1,0 +1,44 @@
+steps:
+  # Auth
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'build',
+      '-t',
+      'europe-north2-docker.pkg.dev/sleepr-497417/backend/auth:latest',
+      '-f',
+      'apps/auth/Dockerfile',
+      '.'
+    ]
+
+  # Payments
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'build',
+      '-t',
+      'europe-north2-docker.pkg.dev/sleepr-497417/backend/payments:latest',
+      '-f',
+      'apps/payments/Dockerfile',
+      '.'
+    ]
+
+  # Notifications
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'build',
+      '-t',
+      'europe-north2-docker.pkg.dev/sleepr-497417/backend/notifications:latest',
+      '-f',
+      'apps/notifications/Dockerfile',
+      '.'
+    ]
+
+  # Reservations
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'build',
+      '-t',
+      'europe-north2-docker.pkg.dev/sleepr-497417/backend/reservations:latest',
+      '-f',
+      'apps/reservations/Dockerfile',
+      '.'
+    ]

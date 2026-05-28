@@ -1,22 +1,33 @@
-FROM node:alpine AS build
+FROM node:alpine AS development
 
 WORKDIR /usr/src/app
 
-COPY package*.json ./
+COPY package.json ./
+COPY package-lock.json ./
+COPY tsconfig.json tsconfig.json
+COPY nest-cli.json nest-cli.json
+COPY apps/payments/package.json apps/payments/package.json
+
 RUN npm ci
 
-COPY . .
-RUN npm run build:payments
+COPY apps/payments apps/payments
+COPY libs libs
 
-FROM node:alpine
+RUN npm run build payments
+
+FROM node:alpine AS production
+
+ARG NODE_ENV=production
+ENV NODE_ENV=${NODE_ENV}
 
 WORKDIR /usr/src/app
 
-ENV NODE_ENV=production
+COPY package.json ./
+COPY package-lock.json ./
+COPY apps/payments/package.json apps/payments/package.json
 
-COPY package*.json ./
 RUN npm ci --omit=dev
 
-COPY --from=build /usr/src/app/dist ./dist
+COPY --from=development /usr/src/app/dist ./dist
 
 CMD ["node", "dist/apps/payments/main"]

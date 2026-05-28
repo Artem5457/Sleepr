@@ -1,22 +1,33 @@
-FROM node:alpine AS build
+FROM node:alpine AS development
 
 WORKDIR /usr/src/app
 
-COPY package*.json ./
+COPY package.json ./
+COPY package-lock.json ./
+COPY tsconfig.json tsconfig.json
+COPY nest-cli.json nest-cli.json
+COPY apps/auth/package.json apps/auth/package.json
+
 RUN npm ci
 
-COPY . .
-RUN npm run build:auth
+COPY apps/auth apps/auth
+COPY libs libs
 
-FROM node:alpine
+RUN npm run build auth
+
+FROM node:alpine AS production
+
+ARG NODE_ENV=production
+ENV NODE_ENV=${NODE_ENV}
 
 WORKDIR /usr/src/app
 
-ENV NODE_ENV=production
+COPY package.json ./
+COPY package-lock.json ./
+COPY apps/auth/package.json apps/auth/package.json
 
-COPY package*.json ./
 RUN npm ci --omit=dev
 
-COPY --from=build /usr/src/app/dist ./dist
+COPY --from=development /usr/src/app/dist ./dist
 
 CMD ["node", "dist/apps/auth/main"]
