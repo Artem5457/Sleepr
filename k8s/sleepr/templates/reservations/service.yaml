@@ -4,6 +4,8 @@ metadata:
   labels:
     app: reservations
   name: reservations
+  annotations:
+    cloud.google.com/backend-config: '{"ports": {"3004":"reservations-backendconfig"}}'
 spec:
   ports:
     - name: "http"

@@ -4,6 +4,8 @@ metadata:
   labels:
     app: auth
   name: auth-http
+  annotations:
+    cloud.google.com/backend-config: '{"ports": {"3003":"auth-backendconfig"}}'
 spec:
   ports:
     - name: 'http'
