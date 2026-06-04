@@ -33,6 +33,13 @@ spec:
               value: 'payments'
             - name: PAYMENTS_PORT
               value: '3001'
+          resources:
+              requests:
+                cpu: "100m"
+                memory: "128Mi"
+              limits:
+                cpu: "250m"
+                memory: "256Mi"
           ports:
             - containerPort: 3004
           livenessProbe:

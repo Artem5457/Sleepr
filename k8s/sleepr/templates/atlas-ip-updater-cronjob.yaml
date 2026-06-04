@@ -1,0 +1,89 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: atlas-ip-updater
+  namespace: default
+spec:
+  schedule: '*/10 * * * *'
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: updater
+              image: alpine:3.18
+              env:
+                - name: ATLAS_PUBLIC
+                  valueFrom:
+                    secretKeyRef:
+                      name: atlas-api
+                      key: ATLAS_PUBLIC
+                - name: ATLAS_PRIVATE
+                  valueFrom:
+                    secretKeyRef:
+                      name: atlas-api
+                      key: ATLAS_PRIVATE
+                - name: ATLAS_PROJECT_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: atlas-api
+                      key: ATLAS_PROJECT_ID
+              command: ['/bin/sh', '-c']
+              args:
+                - |
+                  set -euo pipefail
+                  apk add --no-cache curl jq python3 >/dev/null 2>&1 || true
+
+                  # get node external IPs via Kubernetes API
+                  TOKEN_FILE=/var/run/secrets/kubernetes.io/serviceaccount/token
+                  CACERT=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+                  KUBE_API="https://kubernetes.default.svc"
+                  if [ -r "$TOKEN_FILE" ]; then
+                    TOKEN=$(cat $TOKEN_FILE)
+                    NODES_JSON=$(curl -s --cacert $CACERT -H "Authorization: Bearer $TOKEN" "$KUBE_API/api/v1/nodes") || NODES_JSON=""
+                  else
+                    echo "No service account token available; cannot list nodes"; exit 1
+                  fi
+
+                  IPS=$(echo "$NODES_JSON" | jq -r '.items[] | .status.addresses[]? | select(.type=="ExternalIP") | .address' | sort -u)
+                  # fallback to InternalIP if no ExternalIP present
+                  if [ -z "$IPS" ]; then
+                    IPS=$(echo "$NODES_JSON" | jq -r '.items[] | .status.addresses[]? | select(.type=="InternalIP") | .address' | sort -u)
+                  fi
+                  [ -n "$IPS" ] || { echo "cannot determine node IPs"; exit 1; }
+                  echo "node IPs:"
+                  echo "$IPS"
+
+                  BASE="https://cloud.mongodb.com/api/atlas/v1.0/groups/${ATLAS_PROJECT_ID}/accessList"
+
+                  # fetch current Atlas list
+                  ATLAS_LIST=$(curl --digest -s -u "${ATLAS_PUBLIC}:${ATLAS_PRIVATE}" "${BASE}" )
+
+                  # add missing IPs
+                  for IP in $IPS; do
+                    if echo "$ATLAS_LIST" | jq -e --arg ip "$IP" '.results[] | select(.ipAddress == $ip)' >/dev/null 2>&1; then
+                      echo "IP $IP already present"
+                    else
+                      echo "Adding $IP to Atlas access list"
+                      curl --digest -s -u "${ATLAS_PUBLIC}:${ATLAS_PRIVATE}" -X POST "${BASE}" -H "Content-Type: application/json" -d '[{"ipAddress":"'"${IP}"'","comment":"k8s-egress"}]' | jq . || echo "failed to add $IP"
+                    fi
+                  done
+
+                  # remove old k8s-egress entries that are not in current set
+                  CUR_SET=$(echo "$IPS" | tr '\n' ' ')
+                  EXISTING=$(echo "$ATLAS_LIST" | jq -r '.results[] | select(.comment=="k8s-egress") | .ipAddress' || true)
+                  for OLD in $EXISTING; do
+                    [ -z "$OLD" ] && continue
+                    echo "$CUR_SET" | grep -wq "$OLD" || {
+                      ENC=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1],safe=''))" "$OLD")
+                      echo "Deleting old entry $OLD"
+                      curl --digest -s -u "${ATLAS_PUBLIC}:${ATLAS_PRIVATE}" -X DELETE "${BASE}/${ENC}" || echo "failed to delete $OLD"
+                    }
+                  done
+
+                  echo "Done."
+          serviceAccountName: atlas-ip-updater

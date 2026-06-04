@@ -1,0 +1,12 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: atlas-ip-updater-binding
+subjects:
+  - kind: ServiceAccount
+    name: atlas-ip-updater
+    namespace: default
+roleRef:
+  kind: ClusterRole
+  name: atlas-ip-updater-role
+  apiGroup: rbac.authorization.k8s.io
