@@ -5,6 +5,7 @@ import { CurrentUser } from '@app/common';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { UserDocument } from '../../../libs/common/src/models/user.schema';
 import { MessagePattern, Payload } from '@nestjs/microservices';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -21,6 +22,7 @@ export class AuthController {
   }
 
   @MessagePattern('authenticate')
+  @UseGuards(JwtAuthGuard)
   authenticate(@Payload() data: { Authentication: string }) {
     return this.authService.authenticate(data.Authentication);
   }
